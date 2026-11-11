@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>전국 고등학교 시간표</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+:root{--bg:#f2f2f7;--card:#fff;--tx:#000;--sub:#8e8e93;--line:#e5e5ea;--blue:#0a84ff;--hi:#e6f0ff;--seg:#e3e3e8;--on:#fff}
+:root[data-t=dark]{--bg:#000;--card:#1c1c1e;--tx:#fff;--sub:#98989f;--line:#38383a;--hi:#12294a;--seg:#2c2c2e;--on:#636366}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--tx);font:16px/1.4 -apple-system,BlinkMacSystemFont,"SF Pro Text","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;padding:env(safe-area-inset-top) 0 40px}
+main{max-width:760px;margin:0 auto;padding:0 16px}
+header{display:flex;align-items:flex-end;justify-content:space-between;padding:28px 0 12px}
+h1{font-size:32px;margin:0;letter-spacing:-.5px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:14px;overflow:hidden}
+.seg{display:flex;background:var(--seg);border-radius:9px;padding:2px;gap:2px}
+.seg button{flex:1;border:0;background:none;color:var(--tx);font:inherit;font-size:13px;padding:6px 10px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.seg button.on{background:var(--on);box-shadow:0 1px 3px #0003;font-weight:600}
+:root:not([data-t=dark]) .seg button.on{background:#fff}
+input,select{width:100%;font:inherit;font-size:16px;color:var(--tx);background:var(--seg);border:0;border-radius:10px;padding:10px 12px;outline:none}
+.row{display:flex;gap:8px;margin-bottom:10px}
+.row>*{min-width:0}
+.list{max-height:280px;overflow:auto;margin-top:8px}
+.item{display:flex;justify-content:space-between;align-items:center;padding:11px 4px;border-top:.5px solid var(--line);cursor:pointer}
+.item small{color:var(--sub)}
+.tag{font-size:11px;color:var(--blue);background:var(--hi);border-radius:20px;padding:2px 8px;margin-left:6px}
+.msg{color:var(--sub);text-align:center;padding:18px 0;font-size:14px}
+.nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.nav b{font-size:15px}.nav button{border:0;background:var(--seg);color:var(--blue);border-radius:50%;width:34px;height:34px;font-size:16px;cursor:pointer}
+.sc{overflow-x:auto}
+table{border-collapse:separate;border-spacing:0;width:100%;text-align:center;font-size:14px}
+th,td{padding:9px 4px;border-bottom:.5px solid var(--line);min-width:52px}
+th{color:var(--sub);font-weight:500;font-size:12px}
+td.p{color:var(--sub);font-size:12px;min-width:34px}
+.today{background:var(--hi)}
+td.e{color:var(--sub)}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btns button{border:0;border-radius:12px;padding:13px;font:inherit;font-weight:600;background:var(--card);color:var(--blue);cursor:pointer}
+.btns .w{grid-column:1/3;background:var(--blue);color:#fff}
+#cap{padding:14px}.t{font-weight:700;font-size:17px}.s{color:var(--sub);font-size:12px;margin-bottom:8px}
+#wp{display:none;position:fixed;inset:0;z-index:99;background:linear-gradient(160deg,#dbeafe,#f5f3ff);color:#000;padding:max(16px,env(safe-area-inset-top)) 14px 16px;flex-direction:column}
+#wp[data-t=dark]{background:linear-gradient(160deg,#0b1220,#1b1033);color:#fff}
+#wp .t{font-size:5vmin;text-align:center;margin-top:4vh}#wp .s{text-align:center;font-size:2.6vmin}
+#wp table{flex:1;font-size:max(3.2vmin,13px);background:#fff4;border-radius:16px;margin-top:8px}
+#wp td,#wp th{padding:0 2px;border-color:#8883}
+#wp .today{background:#0a84ff33}
+#hint{position:absolute;left:12px;right:12px;bottom:max(18px,env(safe-area-inset-bottom));background:#000c;color:#fff;border-radius:16px;padding:14px;text-align:center;font-size:14px}#hint.off{display:none!important}#hint button{margin:8px 4px 0}
+#hint button{margin-top:8px;border:0;border-radius:10px;padding:8px 16px;font:inherit;background:#fff;color:#000}
+#wc{flex:1;display:flex;flex-direction:column;min-height:0;transform-origin:50% 50%;touch-action:none}
+#hint .ctl{display:flex;align-items:center;gap:10px;margin:8px 0;text-align:left}
+#hint .ctl span{width:34px;font-size:13px;flex:none}
+#hint .ctl small{width:26px;text-align:center;flex:none}
+#hint .ctl input{flex:1;padding:0;background:none;height:28px;accent-color:#0a84ff}
+</style>
+</head>
+<body>
+<main>
+<header><h1>시간표</h1>
+<div class="seg" id="theme" style="width:170px"><button data-v="auto">자동</button><button data-v="light">화이트</button><button data-v="dark">다크</button></div></header>
+
+<div class="card">
+<div class="row"><select id="reg"></select></div>
+<input id="q" placeholder="학교명 검색 (예: 오현고등학교)" autocomplete="off" enterkeyhint="search">
+<div class="list" id="res"></div>
+</div>
+
+<div id="tt" style="display:none">
+<div class="card">
+<div class="t" id="sn"></div>
+<div class="row" style="margin-top:10px"><div class="seg" id="gr" style="flex:1"></div><select id="cl" style="flex:1"></select></div>
+<div class="seg" id="vw"><button data-v="w" class="on">주간 (학급)</button><button data-v="d">일별 (전체 반)</button></div>
+</div>
+<div class="card">
+<div class="nav"><button id="pv">◀</button><b id="wk"></b><button id="nx">▶</button></div>
+<div id="dys" class="seg" style="display:none;margin-bottom:10px"></div>
+<div id="cap"><div class="t" id="ct"></div><div class="s" id="cs"></div><div class="sc" id="tb"></div></div>
+</div>
+<div class="btns">
+<button id="img">🖼 이미지 저장</button><button id="pdf">📄 PDF 저장</button>
+<button id="bg" class="w">📱 배경화면으로 설정</button>
+</div>
+<p class="msg" style="font-size:12px">시간표 데이터: 나이스(NEIS) 교육정보 개방포털. 학교 사정으로 실제와 다를 수 있어요.</p>
+</div>
+</main>
+
+<div id="wp"><div id="wc"><div class="t" id="wt"></div><div class="s" id="ws"></div><div id="wb" style="flex:1;display:flex"></div></div>
+<div id="hint">크기·위치를 맞춘 뒤 <b>확인</b>을 누르고 스크린샷을 찍으세요 📸<div class="ctl"><span>크기</span><small>작게</small><input type="range" id="zr" min="40" max="150" step="1"><small>크게</small></div><div class="ctl"><span>위치</span><small>위</small><input type="range" id="yr" min="-45" max="45" step="1"><small>아래</small></div><small>시간표를 한 손가락으로 끌면 위아래 이동, 두 손가락으로 벌리면 확대/축소<br>(화면을 터치하면 이 안내가 다시 나타나요)</small><br><button id="rs">초기화</button><button id="ok">확인</button><button id="ex">나가기</button></div></div>
+
+<script>
+const KEY='3aaea04b96e84f93ae9ca6527adb76a5',B='https://open.neis.go.kr/hub/';
+const REG={'전체 지역':'',서울특별시:'B10',부산광역시:'C10',대구광역시:'D10',인천광역시:'E10',광주광역시:'F10',대전광역시:'G10',울산광역시:'H10',세종특별자치시:'I10',경기도:'J10',강원특별자치도:'K10',충청북도:'M10',충청남도:'N10',전북특별자치도:'P10',전라남도:'Q10',경상북도:'R10',경상남도:'S10',제주특별자치도:'T10'};
+const DN=['일','월','화','수','목','금','토'];
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>''+d.getFullYear()+pad(d.getMonth()+1)+pad(d.getDate());
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let S={sc:null,grade:1,cls:null,mon:monday(new Date()),view:'w',day:0,data:{},ent:[]};
+function monday(d){d=new Date(d.getFullYear(),d.getMonth(),d.getDate());const w=d.getDay();d.setDate(d.getDate()+(w===0?1:w===6?2:1-w));return d}
+function store(k,v){try{if(v===undefined)return JSON.parse(localStorage.getItem(k));localStorage.setItem(k,JSON.stringify(v))}catch(e){return null}}
+
+async function api(ep,p){
+  const u=new URL(B+ep);
+  u.search=new URLSearchParams({KEY,Type:'json',pIndex:1,pSize:1000,...p});
+  const j=await(await fetch(u)).json();
+  if(j.RESULT||!j[ep])return[];
+  return j[ep][1].row||[];
+}
+
+/* theme */
+function theme(v){
+  store('th',v);
+  const dark=v==='dark'||(v==='auto'&&matchMedia('(prefers-color-scheme:dark)').matches);
+  document.documentElement.dataset.t=dark?'dark':'light';
+  $('wp').dataset.t=dark?'dark':'light';
+  document.querySelectorAll('#theme button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+}
+$('theme').onclick=e=>e.target.dataset.v&&theme(e.target.dataset.v);
+theme(store('th')||'auto');
+
+/* school search */
+$('reg').innerHTML=Object.keys(REG).map(k=>`<option value="${REG[k]}">${k}</option>`).join('');
+let tm;
+function search(){
+  clearTimeout(tm);const q=$('q').value.trim();
+  if(!q){showRecent();return}
+  $('res').innerHTML='<div class="msg">검색 중…</div>';
+  tm=setTimeout(async()=>{
+    try{
+      const p={SCHUL_NM:q};if($('reg').value)p.ATPT_OFCDC_SC_CODE=$('reg').value;
+      const r=(await api('schoolInfo',p)).filter(x=>x.SCHUL_KND_SC_NM==='고등학교');
+      list(r,'검색 결과가 없어요');
+    }catch(e){$('res').innerHTML='<div class="msg">불러오지 못했어요. 네트워크를 확인해 주세요.</div>'}
+  },300);
+}
+function list(r,empty){
+  S.ent=r;
+  $('res').innerHTML=r.length?r.map((x,i)=>`<div class="item" data-i="${i}"><span>${esc(x.SCHUL_NM)}<span class="tag">${esc(x.HS_SC_NM||'')}</span></span><small>${esc(x.LCTN_SC_NM||'')}</small></div>`).join(''):`<div class="msg">${empty}</div>`;
+}
+function showRecent(){const r=store('recent')||[];list(r,'학교명을 입력하세요');if(r.length)$('res').insertAdjacentHTML('afterbegin','<small style="color:var(--sub)">최근 본 학교</small>')}
+$('q').oninput=search;$('reg').onchange=search;
+$('res').onclick=e=>{const it=e.target.closest('.item');if(!it)return;pick(S.ent[it.dataset.i])};
+async function pick(x){
+  S.sc={n:x.SCHUL_NM,a:x.ATPT_OFCDC_SC_CODE,c:x.SD_SCHUL_CODE};
+  store('recent',[x,...(store('recent')||[]).filter(r=>r.SD_SCHUL_CODE!==x.SD_SCHUL_CODE)].slice(0,5));
+  $('tt').style.display='block';$('sn').textContent=x.SCHUL_NM;
+  $('gr').innerHTML=[1,2,3].map(g=>`<button data-g="${g}">${g}학년</button>`).join('');
+  S.grade=1;await load();
+  $('tt').scrollIntoView({behavior:'smooth'});
+}
+$('gr').onclick=e=>{if(e.target.dataset.g){S.grade=+e.target.dataset.g;load()}};
+
+/* timetable */
+async function load(){
+  const m=S.mon,f=new Date(m);f.setDate(f.getDate()+4);
+  document.querySelectorAll('#gr button').forEach(b=>b.classList.toggle('on',+b.dataset.g===S.grade));
+  $('wk').textContent=`${m.getMonth()+1}/${m.getDate()} ~ ${f.getMonth()+1}/${f.getDate()}`;
+  $('tb').innerHTML='<div class="msg">불러오는 중…</div>';
+  let rows=[];
+  try{
+    for(let i=1;i<=4;i++){
+      const r=await api('hisTimetable',{ATPT_OFCDC_SC_CODE:S.sc.a,SD_SCHUL_CODE:S.sc.c,GRADE:S.grade,TI_FROM_YMD:ymd(m),TI_TO_YMD:ymd(f),pIndex:i});
+      rows=rows.concat(r);if(r.length<1000)break;
+    }
+  }catch(e){$('tb').innerHTML='<div class="msg">불러오지 못했어요.</div>';return}
+  const d={};
+  rows.forEach(r=>{
+    const k=(r.DDDEP_NM?r.DDDEP_NM+' ':'')+r.CLASS_NM;
+    ((d[k]??={})[r.ALL_TI_YMD]??={})[+r.PERIO]=r.ITRT_CNTNT;
+  });
+  S.data=d;
+  const ks=Object.keys(d).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+  if(!ks.includes(S.cls))S.cls=ks[0]||null;
+  $('cl').innerHTML=ks.map(k=>`<option ${k===S.cls?'selected':''}>${esc(k)}</option>`).join('');
+  $('cl').style.visibility=S.view==='w'?'visible':'hidden';
+  render();
+}
+$('cl').onchange=e=>{S.cls=e.target.value;render()};
+$('pv').onclick=()=>{S.mon.setDate(S.mon.getDate()-7);load()};
+$('nx').onclick=()=>{S.mon.setDate(S.mon.getDate()+7);load()};
+$('vw').onclick=e=>{if(!e.target.dataset.v)return;S.view=e.target.dataset.v;
+  document.querySelectorAll('#vw button').forEach(b=>b.classList.toggle('on',b.dataset.v===S.view));
+  $('cl').style.visibility=S.view==='w'?'visible':'hidden';render()};
+$('dys').onclick=e=>{if(e.target.dataset.d){S.day=+e.target.dataset.d;render()}};
+
+function days(){return[0,1,2,3,4].map(i=>{const d=new Date(S.mon);d.setDate(d.getDate()+i);return d})}
+function maxP(keys){let m=7;keys.forEach(k=>Object.values(S.data[k]).forEach(o=>Object.keys(o).forEach(p=>m=Math.max(m,+p))));return m}
+function table(){
+  const ds=days(),td=ymd(new Date()),ks=Object.keys(S.data);
+  if(!ks.length)return'<div class="msg">이 주의 시간표가 없어요 (방학·시험·미등록 등)</div>';
+  const P=maxP(S.view==='w'?[S.cls]:ks);
+  let h='<table><tr><th></th>';
+  if(S.view==='w'){
+    h+=ds.map(d=>`<th class="${ymd(d)===td?'today':''}">${DN[d.getDay()]}<br>${d.getDate()}</th>`).join('')+'</tr>';
+    for(let p=1;p<=P;p++){h+=`<tr><td class="p">${p}</td>`+ds.map(d=>{const v=S.data[S.cls]?.[ymd(d)]?.[p];return`<td class="${ymd(d)===td?'today ':''}${v?'':'e'}">${v?esc(v):'·'}</td>`}).join('')+'</tr>'}
+  }else{
+    const key=ymd(ds[S.day]),cs=Object.keys(S.data).sort((a,b)=>a.localeCompare(b,'ko',{numeric:true}));
+    h+=cs.map(c=>`<th>${esc(c.replace(/.*\s/,''))}${/\s/.test(c)?'<br>'+esc(c.replace(/\s.*/,'')):'반'}</th>`).join('')+'</tr>';
+    for(let p=1;p<=P;p++){h+=`<tr><td class="p">${p}</td>`+cs.map(c=>{const v=S.data[c][key]?.[p];return`<td class="${v?'':'e'}">${v?esc(v):'·'}</td>`}).join('')+'</tr>'}
+  }
+  return h+'</table>';
+}
+function title(){
+  const ds=days(),w=S.view==='w';
+  return[`${S.sc.n} ${w?S.grade+'학년 '+(S.cls||'')+(/\s/.test(S.cls||'')?'':'반'):S.grade+'학년 '+DN[ds[S.day].getDay()]+'요일 ('+(ds[S.day].getMonth()+1)+'/'+ds[S.day].getDate()+')'}`,
+   `${ds[0].getMonth()+1}/${ds[0].getDate()} ~ ${ds[4].getMonth()+1}/${ds[4].getDate()} · NEIS`];
+}
+function render(){
+  const ds=days();
+  $('dys').style.display=S.view==='d'?'flex':'none';
+  $('dys').innerHTML=ds.map((d,i)=>`<button data-d="${i}" class="${i===S.day?'on':''}">${DN[d.getDay()]}</button>`).join('');
+  const [t,s]=title();$('ct').textContent=t;$('cs').textContent=s;$('tb').innerHTML=table();
+}
+if(!S.sc)showRecent();
+
+/* save */
+const snap=()=>html2canvas($('cap'),{scale:2,backgroundColor:getComputedStyle($('cap')).getPropertyValue('--card')||'#fff'});
+const fname=()=>`${S.sc.n}_${S.grade}학년_시간표`;
+$('img').onclick=async()=>{
+  try{const c=await snap(),a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=fname()+'.png';a.click()}
+  catch(e){alert('이미지 저장에 실패했어요.')}
+};
+$('pdf').onclick=async()=>{
+  try{
+    const c=await snap(),{jsPDF}=window.jspdf,land=c.width>c.height;
+    const pdf=new jsPDF({orientation:land?'l':'p',unit:'mm',format:'a4'});
+    const W=pdf.internal.pageSize.getWidth()-20,H=pdf.internal.pageSize.getHeight()-20;
+    const r=Math.min(W/c.width,H/c.height);
+    pdf.addImage(c.toDataURL('image/png'),'PNG',10,10,c.width*r,c.height*r);
+    pdf.save(fname()+'.pdf');
+  }catch(e){alert('PDF 저장에 실패했어요.')}
+};
+
+/* wallpaper */
+let ht;
+function hint(on){$('hint').classList.toggle('off',!on)}
+const cl=(v,a,b)=>Math.min(b,Math.max(a,v));
+let W=Object.assign({z:1,y:0},store('wpv')||{});
+function applyW(save){
+  $('wc').style.transform=`translateY(${W.y}vh) scale(${W.z})`;
+  $('zr').value=Math.round(W.z*100);$('yr').value=Math.round(W.y);
+  if(save)store('wpv',W);
+}
+$('zr').oninput=e=>{W.z=cl(+e.target.value/100,.4,1.5);applyW(1)};
+$('yr').oninput=e=>{W.y=cl(+e.target.value,-45,45);applyW(1)};
+$('rs').onclick=e=>{e.stopPropagation();W={z:1,y:0};applyW(1)};
+let G=null;
+const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+function gStart(e){
+  const t=e.touches;
+  if(t.length>=2)G={m:'p',d:dist(t),z:W.z};
+  else if(t.length===1)G={m:'d',y0:t[0].clientY,y:W.y};
+}
+$('wc').addEventListener('touchstart',gStart,{passive:true});
+$('wc').addEventListener('touchmove',e=>{
+  if(!G)return;e.preventDefault();const t=e.touches;
+  if(G.m==='p'&&t.length>=2){W.z=cl(G.z*dist(t)/G.d,.4,1.5)}
+  else if(G.m==='d'&&t.length===1){W.y=cl(G.y+(t[0].clientY-G.y0)/innerHeight*100,-45,45)}
+  applyW(0);
+},{passive:false});
+$('wc').addEventListener('touchend',e=>{store('wpv',W);G=null;if(e.touches.length)gStart(e)});
+let drag=null;
+$('wc').addEventListener('mousedown',e=>{drag={y0:e.clientY,y:W.y}});
+addEventListener('mousemove',e=>{if(!drag)return;W.y=cl(drag.y+(e.clientY-drag.y0)/innerHeight*100,-45,45);applyW(0)});
+addEventListener('mouseup',()=>{if(drag){drag=null;store('wpv',W)}});
+$('wc').addEventListener('wheel',e=>{e.preventDefault();W.z=cl(W.z*(e.deltaY<0?1.05:.95),.4,1.5);applyW(1)},{passive:false});
+$('bg').onclick=async()=>{
+  const v=S.view;S.view='w';const [t,s]=title(),h=table();S.view=v;
+  $('wt').textContent=t;$('ws').textContent=s;$('wb').innerHTML=h;
+  $('wp').style.display='flex';applyW(0);
+  const el=document.documentElement,rq=el.requestFullscreen||el.webkitRequestFullscreen;
+  try{if(rq)await rq.call(el)}catch(e){}
+  hint(true);
+};
+$('wp').onclick=e=>{if(!e.target.closest('#hint'))hint(true)};
+function closeWp(){hint(false);$('wp').style.display='none';const ex=document.exitFullscreen||document.webkitExitFullscreen;if(document.fullscreenElement&&ex)ex.call(document)}
+$('ex').onclick=closeWp;$('ok').onclick=e=>{e.stopPropagation();hint(false)};
+document.addEventListener('fullscreenchange',()=>{if(!document.fullscreenElement)$('wp').style.display='none'});
+</script>
+</body>
+</html>
